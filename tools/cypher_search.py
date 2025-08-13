@@ -1,3 +1,5 @@
+from tool import Tool
 
-def cypher_search(user_query, driver, llm):
-  pass
+class CypherSearch(Tool):
+  def __init__(self, neo4j_driver):
+    pass
