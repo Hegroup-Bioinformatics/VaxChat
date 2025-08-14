@@ -9,6 +9,8 @@ def create_llm(
 			model: str = "AzureOpenAI",
 			temperature: float = 0.7,
 ) -> BaseChatModel: 
+  """LLM constructor that loads credentials from llm.env, AzureOpenAI with gpt35-turbo is default"""
+  
   load_dotenv("../llm.env")
   valid_models = ["AzureOpenAI"]
   if model == "AzureOpenAI":

@@ -15,7 +15,7 @@ class PubmedAPI():
     self.debug = debug
     
   
-  def search(self, user_query : str, number_to_retrieve : int, mode : Literal["abstract", "full"] = "abstract"):
+  def search(self, user_query : str, number_to_retrieve : int, mode : Literal["abstract", "full"] = "abstract") -> list[dict[str, str]]:
     """searches PubMed and retrieves relevant text to answer user query"""
     
     #rephrased_user_query = self._rephrase_user_query(user_query)
@@ -166,4 +166,5 @@ class PubmedAPI():
  
  
 def connect_pubmed(email : str, debug : bool) -> PubmedAPI:
+  """Creates PubmedAPI object"""
   return PubmedAPI(email, debug)

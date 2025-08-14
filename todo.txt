@@ -1,0 +1,29 @@
+-Finish Tools
+	-finish pubmed_search
+	-finish embed_search
+		-embed all of VaxKG using ontology or graph embedding software
+		-test query embedding and subgraph retrieval
+		-create or use embeddding model
+
+	-finish cypher_search
+		-finish ner model
+		-finish entity embedding mapping
+
+	-implement better error handling
+
+-Finish Agent
+	-finish tools
+	-finish reprompting
+		-should reprompt in response to failure
+	-finish state
+		-should have some message history for context
+		-should be able to prune long term memory or summarize old state
+
+	-finish integration with VaxChat frontend
+		-implement login for email
+		-possibly log usage
+
+	-finish metrics
+		-integrate with langchain api for tracing
+		-get usage reporting and overall condition (costs, calls, time)
+
