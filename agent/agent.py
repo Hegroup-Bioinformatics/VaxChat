@@ -1,5 +1,9 @@
 from helpers.llm import create_llm
-
+from tools.tool import Tool
+from tools.cypher_search import CypherSearch
+#from tools.embed
+from tools.pubmed_search import PubmedSearch
+from drivers.neo4j_drive import connect_neo4j
 
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -16,16 +20,29 @@ class Decision(BaseModel):
   tool_parameters : dict[str, str]
 
 class Agent:
-  def __init__(self, 
+  def __init__(self,
+               email: str, 
                name: str = "Agent", 
                llm_model: str = "AzureOpenAI", 
-               tools: list[str] = ["cypher_search", "embed_search", "pubmed_search"],
+               tool_names: list[str] = ["cypher_search", "embed_search", "pubmed_search"],
+               vector_stores: list[str] = ["host", "pathogen", "vaccine"],
                debug: bool = False): 
     self.name = name
+    self.email = email
     self.llm_model = create_llm(llm_model)
-    self.tools = tools
+    self.tool_names = tool_names
+    self.neo4j_driver = connect_neo4j()
     self.state = ""
     self.debug = debug
+    self.tools: dict[str, Tool] = {}
+    
+    for tool in tool_names:
+      if tool == "cypher_search":
+        self.tools["cypher_search"] = CypherSearch(self.debug, vector_stores, ["MATCH (n: HostName) return n.NAME", "MATCH (n: PathogenName) return n.NAME", "MATCH (n: VaccineName) return n.NAME"], [])
+      if tool == "embed_search":
+        pass
+      if tool == "pubmed_search":
+        self.tools["pubmed_search"] = PubmedSearch(self.email, self.debug)
   
   """
   def run(self, prompt, query):

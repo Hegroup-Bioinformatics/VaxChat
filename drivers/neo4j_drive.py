@@ -5,7 +5,7 @@ import os
 def connect_neo4j() -> Driver:
   """Connects to Neo4j instance, requires login credentials in neo4j.env"""
   
-  load_dotenv("neo4j.env")
+  load_dotenv("../neo4j.env")
   uri = os.getenv("NEO4J_URI")
   user = os.getenv("NEO4J_USER")
   password = os.getenv("NEO4J_PASSWORD")

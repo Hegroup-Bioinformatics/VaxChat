@@ -3,5 +3,5 @@ class Tool:
   def __init__(self, name : str):
     self.name = name
   
-  def execute(self, user_query : str):
+  def execute(self, *args, **kwargs):
     raise NotImplementedError
