@@ -12,6 +12,7 @@ class PubmedAPI():
     Entrez.email = email
     
     self.helper_agent = create_llm()
+    self.decider_agent = create_llm("AzureOpenAI-4o-mini")
     self.debug = debug
     
   
@@ -50,7 +51,7 @@ class PubmedAPI():
       ("human", human_prompt)
     ])
     
-    llm_chain = prompt | self.helper_agent
+    llm_chain = prompt | self.decider_agent
     
     kept_pmids = llm_chain.invoke({"user_query": user_query, "pmids_and_text": pmids_and_text}).content
     if self.debug:
@@ -99,13 +100,27 @@ class PubmedAPI():
   def _fetch_fulltext(self, user_query : str, number_to_retrieve : int):
     """fetches available full-text articles from pmc using Entrez"""
     
-    pass
+    pmids = self._fetch_pmids(user_query, number_to_retrieve)
+    pmids_and_papers = []
+    for pmid in pmids:
+      pmcid = self._convert_pmid_pmcid(pmid)
+      paper_handle = Entrez.efetch(db="pmc", id=pmcid, retmode="xml")
+      xml_data = paper_handle.read()
+      pmids_and_papers.append({"pmid": pmid, "full-text": xml_data})
+    
+    if self.debug:
+      print("=" * 30)
+      print(pmids_and_papers)
+      print("=" * 30)
+      
+    return pmids_and_papers
 
   def _fetch_pmids(self, user_query : str, number_to_retrieve : int) -> list[str]:
     """fetches pmids from pubmed using Entrez"""
     
     handle = Entrez.esearch(db="pubmed", retmax=number_to_retrieve, term=user_query)
     record = Entrez.read(handle)
+    print(record)
     if isinstance(record, dict):
       ids = record['IdList']
       if self.debug:
@@ -162,7 +177,7 @@ class PubmedAPI():
       return rephrased_query
     else:
       raise TypeError(f"in _rephrase_user_query expected str, got {type(rephrased_query).__name__}")
- 
+
  
  
 def connect_pubmed(email : str, debug : bool) -> PubmedAPI:
