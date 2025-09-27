@@ -16,7 +16,7 @@ class PubmedAPI():
     self.debug = debug
     
   
-  def search(self, user_query : str, number_to_retrieve : int, mode : Literal["abstract", "full"] = "abstract") -> list[dict[str, str]]:
+  def search(self, user_query : str, number_to_retrieve : int, mode : Literal["abstract", "full"] = "abstract") -> str:
     """searches PubMed and retrieves relevant text to answer user query"""
     
     #rephrased_user_query = self._rephrase_user_query(user_query)
@@ -60,6 +60,10 @@ class PubmedAPI():
       print("=" * 30)
     
     filtered_pmid_text_pairs = [pair for pair in pmids_and_text if pair["pmid"] in kept_pmids]
+    filtered_pmid_text_pairs = str(filtered_pmid_text_pairs).replace('{', "").replace('}', "")
+    if self.debug:
+      print("=" * 30)
+      print(filtered_pmid_text_pairs)
     return filtered_pmid_text_pairs
   
   

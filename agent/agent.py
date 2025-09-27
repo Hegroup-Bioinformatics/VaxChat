@@ -32,20 +32,25 @@ class Agent:
   def __init__(self,
                email: str, 
                name: str = "Agent", 
-               helper_model: str = "AzureOpenAI-35-turbo", 
+               helper_model: str = "AzureOpenAI-4o-mini", 
                llm_model: str = "AzureOpenAI-4o-mini",
                tool_names: list[str] = ["cypher_search", "embed_search", "pubmed_search", "semmed_search"],
                vector_stores: list[str] = ["host", "pathogen", "vaccine"],
-               debug: bool = False): 
+               debug: bool = False,
+               self_critic: bool = False): 
     self.name = name
     self.email = email
-    self.helper_model = create_llm(helper_model)
     self.answer_model = create_llm(llm_model)
     self.tool_names = tool_names
     self.neo4j_driver = connect_neo4j()
     self.state = State()
     self.debug = debug
     self.tools: dict[str, Tool] = {}
+    self.retrieved_data: str = ""
+    self.retrieval_count: int = 0
+    self.tool_success: list[str] = []
+    self.notes: str = ""
+    self.self_critic: bool = self_critic
     
     for tool in tool_names:
       if tool == "cypher_search":
@@ -67,26 +72,58 @@ class Agent:
   """
   def answer(self, user_query: str) -> str:
     state_update_str = f"User query: {user_query}\n"
+    self.retrieved_data = ""
+    retrieved = ""
+    tool = ""
     
-    decision = self._decide(user_query)
-    tool = decision.tool
-    if tool == "cypher_search":
-      retrieved = self.tools["cypher_search"].execute(user_query=user_query)
-    elif tool == "embedded_search":
-      retrieved = self.tools["embed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
-    elif tool == "pubmed_search":
-      retrieved = self.tools["pubmed_search"].execute(user_query=decision.tool_parameters["query"], number_to_retrieve=decision.tool_parameters["number"], type=decision.tool_parameters["type"])
-    elif tool == "semmed_search":
-      retrieved = self.tools["semmed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
-    elif tool == "conversation":
-      final_answer = decision.tool_parameters["message"]
-      state_update_str += f"Answer: {final_answer}\n"
-      self.state.past_messages += state_update_str
-      return final_answer
-    else: 
-      raise ValueError
-    
-    final_answer = self._final_answer(user_query, retrieved, tool)
+    if self.self_critic:
+      while self.retrieval_count == 0 or self._self_evaluate(user_query, retrieved):
+        print(self.retrieval_count)
+        decision = self._decide(user_query)
+        tool = decision.tool
+        if tool == "cypher_search":
+          retrieved = self.tools["cypher_search"].execute(user_query=user_query)
+        elif tool == "embedded_search":
+          retrieved = self.tools["embed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
+        elif tool == "pubmed_search":
+          try:
+            retrieved = self.tools["pubmed_search"].execute(user_query=decision.tool_parameters["query"], number_to_retrieve=decision.tool_parameters["number"], type=decision.tool_parameters["type"])
+          except:
+            retrieved = ""
+            self.notes += "no pmcids were found for the pubmed ids, retry with different ones, maybe try abstract or higher k"
+        elif tool == "semmed_search":
+          retrieved = self.tools["semmed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
+        elif tool == "conversation":
+          final_answer = decision.tool_parameters["message"]
+          state_update_str += f"Answer: {final_answer}\n"
+          self.state.past_messages += state_update_str
+          return final_answer
+        else: 
+          raise ValueError(f"in answer, expected valid tool selection ['cypher_search', 'embed_search', 'pubmed_search', 'semmed_search'] but got {tool}")
+        self.retrieval_count += 1
+      self.tool_success = [] 
+      self.retrieval_count = 0
+    else:
+      decision = self._decide(user_query)
+      tool = decision.tool
+      if tool == "cypher_search":
+        retrieved = self.tools["cypher_search"].execute(user_query=user_query)
+      elif tool == "embedded_search":
+        retrieved = self.tools["embed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
+      elif tool == "pubmed_search":
+        try:
+          retrieved = self.tools["pubmed_search"].execute(user_query=decision.tool_parameters["query"], number_to_retrieve=decision.tool_parameters["number"], type=decision.tool_parameters["type"])
+        except:
+          self.retrieval_count += 1
+      elif tool == "semmed_search":
+        retrieved = self.tools["semmed_search"].execute(user_query=user_query, k=decision.tool_parameters["k"])
+      elif tool == "conversation":
+        final_answer = decision.tool_parameters["message"]
+        state_update_str += f"Answer: {final_answer}\n"
+        self.state.past_messages += state_update_str
+        return final_answer
+      self.retrieved_data += str(retrieved)
+    final_answer = self._final_answer(user_query, self.retrieved_data, tool)
     
     state_update_str += f"Answer: {final_answer}\n"
     self.state.past_messages += state_update_str
@@ -133,15 +170,19 @@ class Agent:
     """
         
     human_prompt = "The user query is: {user_query}"
-    if self.state.past_messages:
-      human_prompt += f" and the agent state is:\n{self.state.past_messages}"
+    #if self.state.past_messages:
+      #human_prompt += f"\n and the agent state is: {self.state.past_messages}"
+    if self.notes:
+      human_prompt += f"\n and the notes of previous runes is {self.notes}"
+    if self.tool_success:
+      human_prompt += f"\n and the success of previously used tools is: {self.tool_success}"
     
     prompt = ChatPromptTemplate.from_messages([
       ("system", system_prompt),
       ("human", human_prompt)
     ])
     
-    llm_chain = prompt | self.helper_model
+    llm_chain = prompt | self.answer_model
     
     decision = llm_chain.invoke({"user_query": user_query})
     if self.debug:
@@ -185,8 +226,11 @@ class Agent:
         final_response = str(final_response)
     return final_response
   
-  def self_evaluate(self, user_query: str, retrieved_data: str):
+  def _self_evaluate(self, user_query: str, retrieved_data: str):
     """Evaluates and decides whether additional information is needed or the retrieval is good"""
+    if self.retrieval_count >= 3:
+      self.retrieved_data += "\n" + str(retrieved_data)
+      return False
     
     system_prompt = """You are an evaluator of a retriever system, you will determine whether or not the information is relevant to the questions.
       correct - will give this information an agent that answers the query using this information.
@@ -204,11 +248,19 @@ class Agent:
     llm_chain = prompt | self.answer_model
     final_response = llm_chain.invoke({"user_query": user_query, "retrieved_data": retrieved_data}).content
     if self.debug:
+      print("=" * 30 + "\n", "kept content:")
       print(final_response)
       
     if final_response == "correct":
-      pass
+      self.tool_success.append("success")
+      self.retrieved_data += "\n" + str(retrieved_data)
+      return False
     elif final_response == "more_info":
-      pass
+      self.tool_success.append("partial_success")
+      self.retrieved_data += "\n" + str(retrieved_data)
+      return True
     elif final_response == "incorrect":
-      pass
+      self.tool_success.append("failure")
+      return True
+    else:
+      raise ValueError(f"in self_evaluate, expected a valid response ['correct', 'more_info', 'incorrect'] but got {final_response}")
