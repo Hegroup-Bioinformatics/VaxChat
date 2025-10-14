@@ -1,4 +1,4 @@
-# PaperToData
+# VaxChat
 An Agentic RAG System for Vaccines, complete with frontend and agentic backend. 
 
 VaxChat utilizes a variety of tools to answer user queries using retrieved data.
@@ -76,6 +76,7 @@ If python3 does not work:
 ![Screenshot](./readme_img/interface.png)
 ### Backend Pipeline
 ![Screenshot](./readme_img/flowchart.png)
+
 
 
 
