@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - langchain.env
+      - llm.env
+      - email.env
+      - neo4j.env
+    networks:
+      - vaxchat
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - vaxchat
+
+networks:
+  vaxchat:
+    driver: bridge

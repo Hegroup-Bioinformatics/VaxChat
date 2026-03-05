@@ -1,0 +1,13 @@
+flask
+flask-cors
+python-dotenv
+langchain-core
+langchain-openai
+pydantic
+neo4j
+biopython
+requests
+spacy
+faiss-cpu
+numpy
+sentence-transformers

@@ -55,13 +55,31 @@ VaxChat utilizes a variety of tools to answer user queries using retrieved data.
 	NEO4J_PASSWORD={PASSWORD}
 	```
 
+## Docker Setup
+To run the application using Docker:
+
+1. Ensure you have Docker and Docker Compose installed.
+
+2. Ensure your external Neo4j instance is running and accessible.
+
+3. Set up your environment files as described in the Installation section.
+
+4. Build and run the containers:
+```bash
+docker-compose up --build
+```
+
+5. Access the application:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+
 ## Usage
-To run the program, you need to start the frontend and backend: 
-### Frontend 
+To run the program, you need to start the frontend and backend:
+### Frontend
 ```cpp
 npm run dev               // within the frontend folder
 ```
-### Backend 
+### Backend
 ```cpp
 > python3 ./vaxchat.py   // within the backend folder
 ```
